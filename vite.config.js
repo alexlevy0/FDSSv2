@@ -9,5 +9,5 @@ export default defineConfig({
 		outDir: "dist",
 		assetsDir: "assets",
 	},
-	base: "/fdssv2",
+	base: "/fdssv2/",
 })
