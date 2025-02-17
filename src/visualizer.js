@@ -9,8 +9,24 @@ export class AudioVisualizer {
 		this.dataArray = null
 		this.rotation = 0
 		this.lines = []
-		this.gridLines = 20
+		this.gridLines = 30
+		this.zoom = 1.0
+		this.minZoom = 0.5
+		this.maxZoom = 5.0
+		this.gridSize = 4.0
+		this.aspectRatio = this.canvas.width / this.canvas.height
 		this.init()
+		this.setupZoomControl()
+	}
+
+	setupZoomControl() {
+		this.canvas.addEventListener('wheel', (e) => {
+			e.preventDefault()
+			
+			// Calculer le nouveau zoom
+			const zoomDelta = e.deltaY * -0.001
+			this.zoom = Math.min(Math.max(this.zoom + zoomDelta, this.minZoom), this.maxZoom)
+		}, { passive: false })
 	}
 
 	init() {
@@ -37,6 +53,7 @@ export class AudioVisualizer {
             
             uniform mat4 uProjectionMatrix;
             uniform mat4 uViewMatrix;
+            uniform mat4 uModelMatrix;
             uniform sampler2D uFrequencyData;
             uniform float uGridMaxHeight;
             
@@ -49,7 +66,7 @@ export class AudioVisualizer {
                 vec3 position = aPosition;
                 position.z = frequency * uGridMaxHeight;
                 
-                gl_Position = uProjectionMatrix * uViewMatrix * vec4(position, 1.0);
+                gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(position, 1.0);
                 
                 vec3 color = vec3(
                     sin(frequency * 5.0) * 0.5 + 0.5,
@@ -99,6 +116,7 @@ export class AudioVisualizer {
 		this.positionAttribLocation = this.gl.getAttribLocation(this.program, 'aPosition')
 		this.projectionMatrixLocation = this.gl.getUniformLocation(this.program, 'uProjectionMatrix')
 		this.viewMatrixLocation = this.gl.getUniformLocation(this.program, 'uViewMatrix')
+		this.modelMatrixLocation = this.gl.getUniformLocation(this.program, 'uModelMatrix')
 		this.frequencyDataLocation = this.gl.getUniformLocation(this.program, 'uFrequencyData')
 		this.gridMaxHeightLocation = this.gl.getUniformLocation(this.program, 'uGridMaxHeight')
 
@@ -125,24 +143,63 @@ export class AudioVisualizer {
 		}, 5000)
 	}
 
+	updateViewport(width, height) {
+		this.canvas.width = width
+		this.canvas.height = height
+		this.aspectRatio = width / height
+		this.gl.viewport(0, 0, width, height)
+	}
+
+	setGridSize(size) {
+		this.gridSize = size
+		// Recréer les lignes avec la nouvelle taille
+		this.lines = []
+		for (let j = 1; j < this.gridLines; j++) {
+			this.lines.push({
+				axis: 'x',
+				offset: new Spring(0.75, 0.1, (j / this.gridLines * 2 - 1))
+			})
+			this.lines.push({
+				axis: 'y',
+				offset: new Spring(0.75, 0.1, (j / this.gridLines * 2 - 1))
+			})
+		}
+	}
+
 	getLinesPositions() {
 		const granularity = 50
 		const positions = new Float32Array(this.lines.length * granularity * 6)
 		let k = 0
 
+		// Calculer la taille de la grille en fonction du ratio d'aspect
+		const sizeX = this.gridSize
+		const sizeY = this.gridSize / this.aspectRatio
+		
 		for (let line of this.lines) {
 			const nextOffset = line.offset.tick()
 			for (let q = 0; q < granularity; q++) {
 				const t = q / granularity * 2 - 1
 				const nextT = (q + 1) / granularity * 2 - 1
 				
-				positions[k++] = line.axis === 'x' ? nextOffset : t
-				positions[k++] = line.axis === 'y' ? nextOffset : t
-				positions[k++] = 0
+				if (line.axis === 'x') {
+					// Ligne horizontale
+					positions[k++] = nextOffset * sizeX
+					positions[k++] = t * sizeY
+					positions[k++] = 0
 
-				positions[k++] = line.axis === 'x' ? nextOffset : nextT
-				positions[k++] = line.axis === 'y' ? nextOffset : nextT
-				positions[k++] = 0
+					positions[k++] = nextOffset * sizeX
+					positions[k++] = nextT * sizeY
+					positions[k++] = 0
+				} else {
+					// Ligne verticale
+					positions[k++] = t * sizeX
+					positions[k++] = nextOffset * sizeY
+					positions[k++] = 0
+
+					positions[k++] = nextT * sizeX
+					positions[k++] = nextOffset * sizeY
+					positions[k++] = 0
+				}
 			}
 		}
 
@@ -193,8 +250,9 @@ export class AudioVisualizer {
 		this.rotation += 0.005
 
 		// Matrices de vue et projection
-		const projectionMatrix = this.perspective(45 * Math.PI / 180, this.canvas.width / this.canvas.height, 0.1, 100.0)
+		const projectionMatrix = this.perspective(60 * Math.PI / 180, this.aspectRatio, 0.1, 100.0)
 		const viewMatrix = this.createViewMatrix()
+		const modelMatrix = this.createModelMatrix()
 
 		// Mettre à jour les positions des lignes
 		const positions = this.getLinesPositions()
@@ -205,8 +263,9 @@ export class AudioVisualizer {
 		// Définir les uniformes
 		this.gl.uniformMatrix4fv(this.projectionMatrixLocation, false, projectionMatrix)
 		this.gl.uniformMatrix4fv(this.viewMatrixLocation, false, viewMatrix)
+		this.gl.uniformMatrix4fv(this.modelMatrixLocation, false, modelMatrix)
 		this.gl.uniform1i(this.frequencyDataLocation, 0)
-		this.gl.uniform1f(this.gridMaxHeightLocation, 2.0)
+		this.gl.uniform1f(this.gridMaxHeightLocation, 3.0)
 
 		// Effacer le canvas
 		this.gl.clearColor(0.0, 0.0, 0.0, 1.0)
@@ -218,11 +277,23 @@ export class AudioVisualizer {
 		requestAnimationFrame(() => this.draw())
 	}
 
+	createModelMatrix() {
+		// Matrice de mise à l'échelle pour le zoom
+		const scale = this.zoom
+		return [
+			scale, 0, 0, 0,
+			0, scale, 0, 0,
+			0, 0, scale, 0,
+			0, 0, 0, 1
+		]
+	}
+
 	createViewMatrix() {
-		const radius = 8.0
+		// Ajuster le rayon en fonction du ratio d'aspect
+		const radius = Math.max(12.0, 12.0 * this.aspectRatio) / this.zoom
 		const eye = [
 			Math.sin(this.rotation) * radius,
-			3.0,
+			5.0 / this.zoom,
 			Math.cos(this.rotation) * radius
 		]
 		const center = [0, 0, 0]

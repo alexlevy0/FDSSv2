@@ -60,20 +60,37 @@ document.addEventListener("DOMContentLoaded", () => {
 		handleFiles(e.target.files)
 	})
 
+	function updateCanvasSize() {
+		if (isFullscreen) {
+			// En mode plein écran, utiliser les dimensions de la fenêtre
+			canvas.width = window.innerWidth;
+			canvas.height = window.innerHeight - 200; // Espace pour les contrôles
+			
+			// Mettre à jour les paramètres du visualiseur pour le mode plein écran
+			if (visualizer) {
+				visualizer.updateViewport(canvas.width, canvas.height);
+				visualizer.setGridSize(Math.max(canvas.width / canvas.height, 1.0) * 4.0); // Ajuster la taille de la grille en fonction du ratio
+			}
+		} else {
+			// En mode normal, revenir aux dimensions d'origine
+			canvas.width = 560;
+			canvas.height = 200;
+			
+			// Réinitialiser les paramètres du visualiseur
+			if (visualizer) {
+				visualizer.updateViewport(canvas.width, canvas.height);
+				visualizer.setGridSize(4.0);
+			}
+		}
+	}
+
 	// Gérer le mode plein écran
 	function toggleFullscreen() {
 		isFullscreen = !isFullscreen;
 		container.classList.toggle('fullscreen');
 		dropZone.classList.toggle('hidden');
 		
-		// Ajuster la taille du canvas pour le mode plein écran
-		if (isFullscreen) {
-			canvas.width = window.innerWidth;
-			canvas.height = window.innerHeight - 200; // Espace pour les contrôles
-		} else {
-			canvas.width = 560;
-			canvas.height = 200;
-		}
+		updateCanvasSize();
 	}
 
 	// Gérer le clic sur le bouton de sortie du mode plein écran
@@ -100,8 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	// Gérer le redimensionnement de la fenêtre
 	window.addEventListener('resize', () => {
 		if (isFullscreen) {
-			canvas.width = window.innerWidth;
-			canvas.height = window.innerHeight - 200;
+			updateCanvasSize();
 		}
 	});
 
