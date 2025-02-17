@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lecteur Audio - Drag & Drop</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 </head>
 <body>
     <div class="container">
@@ -15,6 +16,9 @@
             </div>
         </div>
         <div id="player-container" class="player-container hidden">
+            <button class="exit-fullscreen">
+                <span class="material-icons">close_fullscreen</span>
+            </button>
             <audio id="audio-player" controls></audio>
             <p id="file-name" class="file-name"></p>
             <canvas id="visualizer" width="560" height="200"></canvas>
