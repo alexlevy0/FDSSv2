@@ -1,0 +1,88 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.container {
+    width: 90%;
+    max-width: 600px;
+    padding: 20px;
+}
+
+.drop-zone {
+    width: 100%;
+    height: 300px;
+    border: 2px dashed #3498db;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.9);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.drop-zone.dragover {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-color: #2980b9;
+}
+
+.drop-zone-content {
+    text-align: center;
+    color: #34495e;
+}
+
+.drop-zone-content p {
+    margin: 10px 0;
+}
+
+.drop-zone-content .small {
+    font-size: 0.9em;
+    color: #7f8c8d;
+}
+
+.file-input {
+    display: none;
+}
+
+.player-container {
+    margin-top: 20px;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.player-container.hidden {
+    display: none;
+}
+
+#audio-player {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.file-name {
+    text-align: center;
+    color: #34495e;
+    font-size: 0.9em;
+    word-break: break-all;
+}
+
+#visualizer {
+    width: 100%;
+    height: 200px;
+    margin-top: 20px;
+    background-color: #000;
+    border-radius: 8px;
+} 

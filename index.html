@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecteur Audio - Drag & Drop</title>
+</head>
+<body>
+    <div class="container">
+        <div id="drop-zone" class="drop-zone">
+            <div class="drop-zone-content">
+                <p>Glissez et déposez votre fichier audio ici</p>
+                <p class="small">ou cliquez pour sélectionner un fichier</p>
+                <input type="file" id="file-input" accept="audio/*" class="file-input" />
+            </div>
+        </div>
+        <div id="player-container" class="player-container hidden">
+            <audio id="audio-player" controls></audio>
+            <p id="file-name" class="file-name"></p>
+            <canvas id="visualizer" width="560" height="200"></canvas>
+        </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html> 
