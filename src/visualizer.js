@@ -59,6 +59,9 @@ export class AudioVisualizer {
 				if (params.animationSpeed !== undefined) {
 					this.animationSpeed = params.animationSpeed;
 				}
+				if (params.zoom !== undefined) {
+					this.zoom = Math.min(Math.max(params.zoom, this.minZoom), this.maxZoom);
+				}
 				this.gridParams = { ...defaultParams, ...params };
 			} catch (e) {
 				console.error('Erreur lors du chargement des paramètres:', e);
@@ -191,7 +194,10 @@ export class AudioVisualizer {
 		controlsContainer.appendChild(slidersContainer);
 
 		// État initial
-		let isExpanded = true;
+		let isExpanded = false;
+		slidersContainer.style.maxHeight = "0";
+		slidersContainer.style.padding = "0 15px";
+		toggleButton.style.transform = "rotate(-90deg)";
 
 		// Fonction pour toggle le menu
 		const toggleMenu = () => {
@@ -206,6 +212,14 @@ export class AudioVisualizer {
 
 		// Configuration des sliders
 		const sliderConfigs = [
+			{
+				name: "Zoom caméra",
+				key: "zoom",
+				min: 0.5,
+				max: 5.0,
+				step: 0.1,
+				default: 1.0,
+			},
 			{
 				name: "Vitesse d'animation",
 				key: "animationSpeed",
@@ -1417,7 +1431,8 @@ export class AudioVisualizer {
 	saveParams() {
 		const params = {
 			...this.gridParams,
-			animationSpeed: this.animationSpeed
+			animationSpeed: this.animationSpeed,
+			zoom: this.zoom
 		};
 		localStorage.setItem('visualizerParams', JSON.stringify(params));
 	}
