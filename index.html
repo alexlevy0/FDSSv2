@@ -8,14 +8,23 @@
 </head>
 <body>
     <div class="container">
-        <div id="drop-zone" class="drop-zone">
-            <div class="drop-zone-content">
-                <p>Glissez et déposez votre fichier audio ici</p>
-                <p class="small">ou cliquez pour sélectionner un fichier</p>
-                <input type="file" id="file-input" accept="audio/*" class="file-input" />
+        <div class="input-container">
+            <div id="drop-zone" class="drop-zone">
+                <div class="drop-zone-content">
+                    <p>Glissez et déposez votre fichier audio ici</p>
+                    <p class="small">ou cliquez pour sélectionner un fichier</p>
+                    <input type="file" id="file-input" accept="audio/*" class="file-input" />
+                </div>
             </div>
+            <button id="mic-button" class="mic-button">
+                <span class="material-icons">mic</span>
+                <span class="mic-text">Utiliser le micro</span>
+            </button>
         </div>
         <div id="player-container" class="player-container hidden">
+            <button class="enter-fullscreen">
+                <span class="material-icons">fullscreen</span>
+            </button>
             <button class="exit-fullscreen">
                 <span class="material-icons">close_fullscreen</span>
             </button>
