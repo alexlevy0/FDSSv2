@@ -1,5 +1,6 @@
 import { Spring } from "./spring.js";
 import { mainVertexShader, mainFragmentShader, particleVertexShader, particleFragmentShader } from "./shaders.js";
+import { mainSliderConfigs, gridCrossSliderConfigs, particleSliderConfigs } from "./sliderConfigs.js";
 
 export class AudioVisualizer {
 	constructor(canvas) {
@@ -211,319 +212,8 @@ export class AudioVisualizer {
 		// Ajouter les événements de clic
 		header.addEventListener("click", toggleMenu);
 
-		// Configuration des sliders
-		const sliderConfigs = [
-			{
-				name: "Zoom caméra",
-				key: "zoom",
-				min: 0.5,
-				max: 5.0,
-				step: 0.1,
-				default: 1.0,
-			},
-			{
-				name: "Vitesse d'animation",
-				key: "animationSpeed",
-				min: 0.1,
-				max: 3.0,
-				step: 0.1,
-				default: 1.0,
-			},
-			{
-				name: "Hauteur maximale",
-				key: "maxHeight",
-				min: 1.0,
-				max: 10.0,
-				step: 0.5,
-				default: 1.5,
-				param: "gridParams",
-			},
-			{
-				name: "Poids des basses",
-				key: "bassWeight",
-				min: 0.5,
-				max: 2.0,
-				step: 0.1,
-				default: 1.4,
-				param: "gridParams",
-			},
-			{
-				name: "Poids des mediums",
-				key: "midWeight",
-				min: 0.5,
-				max: 2.0,
-				step: 0.1,
-				default: 1.2,
-				param: "gridParams",
-			},
-			{
-				name: "Poids des aigus",
-				key: "highWeight",
-				min: 0.5,
-				max: 2.0,
-				step: 0.1,
-				default: 1.1,
-				param: "gridParams",
-			},
-			{
-				name: "Lissage temporel",
-				key: "smoothingTimeConstant",
-				min: 0.1,
-				max: 0.95,
-				step: 0.05,
-				default: 0.5,
-				param: "gridParams",
-				onChange: (value) => {
-					if (this.analyser) {
-						this.analyser.smoothingTimeConstant = value;
-					}
-				},
-			},
-			{
-				name: "Intensité des vagues",
-				key: "waveIntensity",
-				min: 0.0,
-				max: 0.5,
-				step: 0.01,
-				default: 0.15,
-				param: "gridParams",
-			},
-			{
-				name: "Intensité des couleurs",
-				key: "colorIntensity",
-				min: 0.1,
-				max: 1.0,
-				step: 0.1,
-				default: 0.5,
-				param: "gridParams",
-			},
-			{
-				name: "Transparence de base",
-				key: "alphaBase",
-				min: 0.1,
-				max: 0.9,
-				step: 0.1,
-				default: 0.4,
-				param: "gridParams",
-			},
-			{
-				name: "Multiplicateur alpha",
-				key: "alphaMultiplier",
-				min: 1.0,
-				max: 8.0,
-				step: 0.5,
-				default: 4.0,
-				param: "gridParams",
-			},
-			{
-				name: "Intensité de réponse",
-				key: "responseIntensity",
-				min: 1.0,
-				max: 8.0,
-				step: 0.5,
-				default: 4.5,
-				param: "gridParams",
-			},
-		];
-
-		// Nouveaux sliders pour la grille et la croix
-		const additionalSliders = [
-			{
-				name: "Densité de la grille",
-				key: "gridDensity",
-				min: 50,
-				max: 400,
-				step: 10,
-				default: 200,
-				param: "gridParams",
-				onChange: (value) => {
-					this.gridLines = value;
-					this.setGridSize(this.gridSize);
-				}
-			},
-			{
-				name: "Taille de la croix",
-				key: "crossSize",
-				min: 0.0,
-				max: 0.5,
-				step: 0.01,
-				default: 0.1,
-				param: "gridParams"
-			},
-			{
-				name: "Intensité de la croix",
-				key: "crossIntensity",
-				min: 0.0,
-				max: 2.0,
-				step: 0.1,
-				default: 1.0,
-				param: "gridParams"
-			},
-			{
-				name: "Vitesse rotation croix",
-				key: "crossRotationSpeed",
-				min: 0.0,
-				max: 2.0,
-				step: 0.1,
-				default: 1.0,
-				param: "gridParams"
-			},
-			{
-				name: "Fréquence vagues croix",
-				key: "crossWaveFrequency",
-				min: 0.1,
-				max: 5.0,
-				step: 0.1,
-				default: 1.0,
-				param: "gridParams"
-			},
-			{
-				name: "Vitesse vagues grille",
-				key: "gridWaveSpeed",
-				min: 0.1,
-				max: 5.0,
-				step: 0.1,
-				default: 1.0,
-				param: "gridParams"
-			},
-			{
-				name: "Fréquence vagues grille",
-				key: "gridWaveFrequency",
-				min: 0.1,
-				max: 5.0,
-				step: 0.1,
-				default: 1.0,
-				param: "gridParams"
-			},
-			{
-				name: "Vitesse cycle couleurs",
-				key: "colorCycleSpeed",
-				min: 0.1,
-				max: 3.0,
-				step: 0.1,
-				default: 1.0,
-				param: "gridParams"
-			},
-			{
-				name: "Saturation couleurs",
-				key: "colorSaturation",
-				min: 0.0,
-				max: 2.0,
-				step: 0.1,
-				default: 1.0,
-				param: "gridParams"
-			},
-			{
-				name: "Effet de profondeur",
-				key: "depthEffect",
-				min: 0.0,
-				max: 2.0,
-				step: 0.1,
-				default: 1.0,
-				param: "gridParams"
-			}
-		];
-
-		// Nouveaux sliders pour les particules
-		const particleSliders = [
-			{
-				name: "Nombre de particules",
-				key: "particleCount",
-				min: 1000,
-				max: 20000,
-				step: 1000,
-				default: 5000,
-				param: "gridParams",
-				onChange: () => {
-					// Réinitialiser le système de particules avec le nouveau nombre
-					this.initParticleSystem();
-				}
-			},
-			{
-				name: "Taille des particules",
-				key: "particleSize",
-				min: 1.0,
-				max: 20.0,
-				step: 0.5,
-				default: 7.0,
-				param: "gridParams",
-				onChange: () => this.initParticleSystem()
-			},
-			{
-				name: "Variation de taille",
-				key: "particleSizeVariation",
-				min: 0.0,
-				max: 10.0,
-				step: 0.5,
-				default: 5.0,
-				param: "gridParams",
-				onChange: () => this.initParticleSystem()
-			},
-			{
-				name: "Vitesse des particules",
-				key: "particleSpeed",
-				min: 0.1,
-				max: 2.0,
-				step: 0.1,
-				default: 0.5,
-				param: "gridParams"
-			},
-			{
-				name: "Intensité de pulsation",
-				key: "particlePulseIntensity",
-				min: 0.0,
-				max: 2.0,
-				step: 0.1,
-				default: 0.5,
-				param: "gridParams"
-			},
-			{
-				name: "Transparence",
-				key: "particleAlpha",
-				min: 0.1,
-				max: 1.0,
-				step: 0.1,
-				default: 0.7,
-				param: "gridParams"
-			},
-			{
-				name: "Dispersion",
-				key: "particleSpread",
-				min: 5.0,
-				max: 20.0,
-				step: 0.5,
-				default: 10.0,
-				param: "gridParams",
-				onChange: () => this.initParticleSystem()
-			},
-			{
-				name: "Mélange de couleurs",
-				key: "particleColorMix",
-				min: 0.0,
-				max: 1.0,
-				step: 0.1,
-				default: 1.0,
-				param: "gridParams",
-				onChange: () => this.initParticleSystem()
-			},
-			{
-				name: "Rayon de mouvement",
-				key: "particleMotionRadius",
-				min: 0.1,
-				max: 2.0,
-				step: 0.1,
-				default: 1.0,
-				param: "gridParams",
-				onChange: () => this.initParticleSystem()
-			}
-		];
-
-		// Ajouter les nouveaux sliders à la configuration existante
-		sliderConfigs.push(...additionalSliders);
-		sliderConfigs.push(...particleSliders);
-
-		// Modifier la création des sliders pour utiliser les valeurs sauvegardées
-		for (const config of sliderConfigs) {
+		// Fonction pour créer un slider
+		const createSlider = (config) => {
 			const container = document.createElement("div");
 			container.style.display = "flex";
 			container.style.flexDirection = "column";
@@ -573,7 +263,7 @@ export class AudioVisualizer {
 				}
 
 				if (config.onChange) {
-					config.onChange(val);
+					config.onChange(val, this);
 				}
 
 				// Sauvegarder les paramètres après chaque changement
@@ -584,8 +274,33 @@ export class AudioVisualizer {
 			sliderContainer.appendChild(value);
 			container.appendChild(label);
 			container.appendChild(sliderContainer);
-			slidersContainer.appendChild(container);
-		}
+			return container;
+		};
+
+		// Créer les sections pour chaque groupe de sliders
+		const createSection = (title, configs) => {
+			const section = document.createElement("div");
+			section.style.marginBottom = "20px";
+
+			const sectionTitle = document.createElement("h4");
+			sectionTitle.textContent = title;
+			sectionTitle.style.color = "#fff";
+			sectionTitle.style.margin = "0 0 10px 0";
+			sectionTitle.style.fontSize = "13px";
+			sectionTitle.style.fontFamily = "Arial, sans-serif";
+			section.appendChild(sectionTitle);
+
+			for (const config of configs) {
+				section.appendChild(createSlider(config));
+			}
+
+			return section;
+		};
+
+		// Ajouter les sections
+		slidersContainer.appendChild(createSection("Contrôles principaux", mainSliderConfigs));
+		slidersContainer.appendChild(createSection("Grille et croix", gridCrossSliderConfigs));
+		slidersContainer.appendChild(createSection("Particules", particleSliderConfigs));
 
 		document.body.appendChild(controlsContainer);
 	}
