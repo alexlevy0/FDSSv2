@@ -9,7 +9,7 @@ export class AudioVisualizer {
 		this.dataArray = null
 		this.rotation = 0
 		this.lines = []
-		this.gridLines = 30
+		this.gridLines = 100
 		this.zoom = 1.0
 		this.minZoom = 0.5
 		this.maxZoom = 5.0
@@ -35,19 +35,19 @@ export class AudioVisualizer {
 			return
 		}
 
-		// Initialiser les lignes de la grille
+		// Initialiser les lignes de la grille avec un espacement plus fin
 		for (let j = 1; j < this.gridLines; j++) {
 			this.lines.push({
 				axis: 'x',
-				offset: new Spring(0.75, 0.1, j / this.gridLines * 2 - 1)
+				offset: new Spring(0.85, 0.1, j / this.gridLines * 2 - 1)
 			})
 			this.lines.push({
 				axis: 'y',
-				offset: new Spring(0.75, 0.1, j / this.gridLines * 2 - 1)
+				offset: new Spring(0.85, 0.1, j / this.gridLines * 2 - 1)
 			})
 		}
 
-		// Vertex shader avec transformation 3D et couleur
+		// Vertex shader avec transformation 3D et couleur améliorée
 		const vsSource = `
             attribute vec3 aPosition;
             
@@ -69,11 +69,11 @@ export class AudioVisualizer {
                 gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(position, 1.0);
                 
                 vec3 color = vec3(
-                    sin(frequency * 5.0) * 0.5 + 0.5,
-                    sin(frequency * 3.0) * 0.5 + 0.5,
-                    cos(frequency * 2.0) * 0.5 + 0.5
+                    sin(frequency * 6.0) * 0.5 + 0.5,
+                    sin(frequency * 4.0) * 0.5 + 0.5,
+                    cos(frequency * 3.0) * 0.5 + 0.5
                 );
-                float alpha = clamp(frequency * 2.0, 0.1, 1.0);
+                float alpha = clamp(frequency * 2.5, 0.2, 1.0);
                 vColor = vec4(color, alpha);
             }
         `
@@ -157,17 +157,17 @@ export class AudioVisualizer {
 		for (let j = 1; j < this.gridLines; j++) {
 			this.lines.push({
 				axis: 'x',
-				offset: new Spring(0.75, 0.1, (j / this.gridLines * 2 - 1))
+				offset: new Spring(0.85, 0.1, (j / this.gridLines * 2 - 1))
 			})
 			this.lines.push({
 				axis: 'y',
-				offset: new Spring(0.75, 0.1, (j / this.gridLines * 2 - 1))
+				offset: new Spring(0.85, 0.1, (j / this.gridLines * 2 - 1))
 			})
 		}
 	}
 
 	getLinesPositions() {
-		const granularity = 50
+		const granularity = 100
 		const positions = new Float32Array(this.lines.length * granularity * 6)
 		let k = 0
 
@@ -210,7 +210,8 @@ export class AudioVisualizer {
 		this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
 		const source = this.audioContext.createMediaElementSource(audioElement)
 		this.analyser = this.audioContext.createAnalyser()
-		this.analyser.fftSize = 256
+		this.analyser.fftSize = 2048
+		this.analyser.smoothingTimeConstant = 0.8
 
 		source.connect(this.analyser)
 		this.analyser.connect(this.audioContext.destination)
@@ -221,10 +222,12 @@ export class AudioVisualizer {
 	updateFrequencyTexture() {
 		this.analyser.getByteFrequencyData(this.dataArray)
 		
-		// Normaliser les données
+		// Amélioration du traitement des données de fréquence
 		const normalizedData = new Uint8Array(this.dataArray.length)
 		for (let i = 0; i < this.dataArray.length; i++) {
-			normalizedData[i] = this.dataArray[i]
+			// Appliquer une courbe logarithmique pour mieux représenter les basses fréquences
+			const value = this.dataArray[i]
+			normalizedData[i] = Math.pow(value / 255, 0.5) * 255
 		}
 
 		this.gl.bindTexture(this.gl.TEXTURE_2D, this.frequencyTexture)
