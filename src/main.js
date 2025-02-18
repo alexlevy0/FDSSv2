@@ -251,12 +251,16 @@ document.addEventListener("DOMContentLoaded", () => {
 				fileName.textContent = file.name
 				playerContainer.classList.remove("hidden")
 
-				// Initialiser le visualiseur si ce n'est pas déjà fait
+				// Fermer le contexte audio existant si nécessaire
+				visualizer?.audioContext?.close();
+
+				// Initialiser ou réinitialiser le visualiseur
 				if (!visualizer) {
-					visualizer = new AudioVisualizer(canvas)
-					visualizer.setupAudioContext(audioPlayer)
-					visualizer.draw()
+					visualizer = new AudioVisualizer(canvas);
 				}
+				
+				visualizer.setupAudioContext(audioPlayer);
+				visualizer.draw();
 
 				audioPlayer.play()
 			} else {
