@@ -1,4 +1,5 @@
 import { Spring } from "./spring.js";
+import { mainVertexShader, mainFragmentShader, particleVertexShader, particleFragmentShader } from "./shaders.js";
 
 export class AudioVisualizer {
 	constructor(canvas) {
@@ -613,143 +614,8 @@ export class AudioVisualizer {
 			});
 		}
 
-		// Vertex shader avec transformation 3D et couleur améliorée
-		const vsSource = `
-            attribute vec3 aPosition;
-            
-            uniform mat4 uProjectionMatrix;
-            uniform mat4 uViewMatrix;
-            uniform mat4 uModelMatrix;
-            uniform sampler2D uFrequencyData;
-            uniform float uGridMaxHeight;
-            uniform float uTime;
-            uniform float uWaveIntensity;
-            uniform float uColorIntensity;
-            uniform float uAlphaBase;
-            uniform float uAlphaMultiplier;
-            uniform float uCrossSize;
-            uniform float uCrossIntensity;
-            uniform float uCrossRotationSpeed;
-            uniform float uCrossWaveFrequency;
-            uniform float uGridWaveSpeed;
-            uniform float uGridWaveFrequency;
-            uniform float uColorCycleSpeed;
-            uniform float uColorSaturation;
-            uniform float uDepthEffect;
-            
-            varying vec4 vColor;
-            
-            void main() {
-                vec2 lookup = (aPosition.xy + 1.0) * 0.5;
-                float x = lookup.x;
-                float y = lookup.y;
-                
-                // Calcul de la distance au centre pour l'effet de croix
-                vec2 center = vec2(0.5, 0.5);
-                vec2 toCenter = lookup - center;
-                float distanceToCenter = length(toCenter);
-                
-                // Rotation de la croix
-                float crossRotation = uTime * uCrossRotationSpeed;
-                vec2 rotatedCoord = vec2(
-                    toCenter.x * cos(crossRotation) - toCenter.y * sin(crossRotation),
-                    toCenter.x * sin(crossRotation) + toCenter.y * cos(crossRotation)
-                );
-                
-                // Effet de croix
-                float crossEffect = max(
-                    smoothstep(uCrossSize, 0.0, abs(rotatedCoord.x)),
-                    smoothstep(uCrossSize, 0.0, abs(rotatedCoord.y))
-                ) * uCrossIntensity;
-                
-                vec2 coord1 = vec2(x, y);
-                vec2 coord2 = vec2(1.0 - y, x);
-                vec2 coord3 = vec2(1.0 - x, 1.0 - y);
-                vec2 coord4 = vec2(y, 1.0 - x);
-                
-                float freq1 = texture2D(uFrequencyData, coord1).r;
-                float freq2 = texture2D(uFrequencyData, coord2).r;
-                float freq3 = texture2D(uFrequencyData, coord3).r;
-                float freq4 = texture2D(uFrequencyData, coord4).r;
-                
-                float yWeight = smoothstep(0.0, 1.0, y);
-                float xWeight = smoothstep(0.0, 1.0, x);
-                
-                float frequency = max(
-                    max(freq1 * (1.0 + yWeight), freq2 * (1.0 + xWeight)),
-                    max(freq3 * (2.0 - yWeight), freq4 * (2.0 - xWeight))
-                );
-                
-                // Ajouter l'effet de croix à la fréquence
-                frequency = mix(frequency, frequency * (1.0 + crossEffect), crossEffect);
-                
-                vec3 position = aPosition;
-                
-                // Vagues de la grille avec paramètres ajustables
-                float gridWave = sin(
-                    x * uGridWaveFrequency * 6.0 + 
-                    y * uGridWaveFrequency * 4.0 + 
-                    uTime * uGridWaveSpeed * 2.0
-                ) * uWaveIntensity;
-                
-                // Vagues de la croix
-                float crossWave = sin(
-                    distanceToCenter * uCrossWaveFrequency * 10.0 + 
-                    uTime * uGridWaveSpeed
-                ) * crossEffect * uWaveIntensity;
-                
-                position.z = frequency * uGridMaxHeight * (
-                    1.0 + 
-                    gridWave + 
-                    crossWave + 
-                    sin(frequency * 10.0) * 0.3
-                );
-                
-                // Effet de profondeur
-                position.z *= mix(1.0, 1.0 - distanceToCenter, uDepthEffect);
-                
-                gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(position, 1.0);
-                
-                // Couleurs avec cycle et saturation ajustables
-                vec3 color = vec3(
-                    sin(frequency * 8.0 + y * 3.0 + uTime * uColorCycleSpeed) * 0.5 + 0.5,
-                    sin(frequency * 6.0 + x * 5.0 + uTime * uColorCycleSpeed * 0.7) * 0.5 + 0.5,
-                    cos(frequency * 4.0 + (x + y) * 2.0 + uTime * uColorCycleSpeed * 0.5) * 0.5 + 0.5
-                );
-                
-                // Ajuster la saturation
-                vec3 gray = vec3(dot(color, vec3(0.299, 0.587, 0.114)));
-                color = mix(gray, color, uColorSaturation);
-                
-                float heightIntensity = smoothstep(0.0, 1.0, position.z / uGridMaxHeight);
-                color = mix(color, vec3(1.0), frequency * uColorIntensity + heightIntensity * 0.3);
-                
-                // Ajuster l'alpha en fonction de la croix
-                float alpha = clamp(
-                    frequency * uAlphaMultiplier + crossEffect, 
-                    uAlphaBase, 
-                    1.0
-                );
-                
-                vColor = vec4(color, alpha);
-            }
-        `;
-
-		// Fragment shader
-		const fsSource = `
-            precision mediump float;
-            varying vec4 vColor;
-            
-            void main() {
-                gl_FragColor = vColor;
-            }
-        `;
-
-		const vertexShader = this.compileShader(vsSource, this.gl.VERTEX_SHADER);
-		const fragmentShader = this.compileShader(
-			fsSource,
-			this.gl.FRAGMENT_SHADER,
-		);
+		const vertexShader = this.compileShader(mainVertexShader, this.gl.VERTEX_SHADER);
+		const fragmentShader = this.compileShader(mainFragmentShader, this.gl.FRAGMENT_SHADER);
 
 		this.program = this.gl.createProgram();
 		this.gl.attachShader(this.program, vertexShader);
@@ -1251,70 +1117,9 @@ export class AudioVisualizer {
 	}
 
 	initParticleSystem() {
-		// Vertex shader pour les particules
-		const particleVsSource = `
-			attribute vec3 aPosition;
-			attribute vec2 aOffset;
-			attribute float aSize;
-			attribute vec3 aColor;
-			
-			uniform mat4 uProjectionMatrix;
-			uniform mat4 uViewMatrix;
-			uniform mat4 uModelMatrix;
-			uniform float uTime;
-			uniform float uBassIntensity;
-			uniform float uParticleSpeed;
-			uniform float uParticlePulseIntensity;
-			uniform float uParticleAlpha;
-			
-			varying vec3 vColor;
-			varying float vAlpha;
-			
-			void main() {
-				// Position de base de la particule
-				vec3 position = aPosition;
-				
-				// Mouvement sinusoïdal basé sur le temps et la position
-				float speed = uParticleSpeed;
-				position.x += sin(uTime * speed + position.y) * aOffset.x;
-				position.y += cos(uTime * speed + position.x) * aOffset.y;
-				position.z += sin(uTime * speed * 0.5) * (aOffset.x + aOffset.y) * 0.5;
-				
-				// Ajouter un effet de pulsation basé sur les basses
-				float pulse = 1.0 + uBassIntensity * uParticlePulseIntensity;
-				position *= pulse;
-				
-				gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(position, 1.0);
-				
-				// Taille variable des points en fonction de la distance et des basses
-				float size = aSize * (1.0 + uBassIntensity * uParticlePulseIntensity);
-				gl_PointSize = size / gl_Position.w;
-				
-				// Couleur et transparence
-				vColor = aColor;
-				vAlpha = uParticleAlpha * (1.0 - gl_Position.z / 10.0);
-			}
-		`;
-
-		// Fragment shader pour les particules
-		const particleFsSource = `
-			precision mediump float;
-			varying vec3 vColor;
-			varying float vAlpha;
-			
-			void main() {
-				// Créer une particule circulaire avec un dégradé doux
-				vec2 coord = gl_PointCoord * 2.0 - 1.0;
-				float r = length(coord);
-				float a = 1.0 - smoothstep(0.0, 1.0, r);
-				
-				gl_FragColor = vec4(vColor, vAlpha * a);
-			}
-		`;
-
 		// Compiler les shaders pour les particules
-		const particleVs = this.compileShader(particleVsSource, this.gl.VERTEX_SHADER);
-		const particleFs = this.compileShader(particleFsSource, this.gl.FRAGMENT_SHADER);
+		const particleVs = this.compileShader(particleVertexShader, this.gl.VERTEX_SHADER);
+		const particleFs = this.compileShader(particleFragmentShader, this.gl.FRAGMENT_SHADER);
 
 		// Créer le programme pour les particules
 		this.particleProgram = this.gl.createProgram();
