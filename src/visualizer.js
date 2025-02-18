@@ -15,10 +15,10 @@ export class AudioVisualizer {
 		this.maxZoom = 5.0;
 		this.gridSize = 4.0;
 		this.aspectRatio = this.canvas.width / this.canvas.height;
-		this.animationSpeed = 1.0; // Vitesse d'animation par défaut
+		this.animationSpeed = 1.0;
 
-		// Nouveaux paramètres ajustables
-		this.gridParams = {
+		// Définir les paramètres par défaut
+		const defaultParams = {
 			maxHeight: 5.0,
 			bassWeight: 1.4,
 			midWeight: 1.2,
@@ -29,7 +29,6 @@ export class AudioVisualizer {
 			alphaBase: 0.4,
 			alphaMultiplier: 4.0,
 			responseIntensity: 4.5,
-			// Nouveaux paramètres pour la grille et la croix
 			gridDensity: 200,
 			crossSize: 0.1,
 			crossIntensity: 1.0,
@@ -39,8 +38,35 @@ export class AudioVisualizer {
 			gridWaveFrequency: 1.0,
 			colorCycleSpeed: 1.0,
 			colorSaturation: 1.0,
-			depthEffect: 1.0
+			depthEffect: 1.0,
+			particleCount: 5000,
+			particleSize: 7.0,
+			particleSizeVariation: 5.0,
+			particleSpeed: 0.5,
+			particleSpeedVariation: 0.3,
+			particleAlpha: 0.7,
+			particlePulseIntensity: 0.5,
+			particleSpread: 10.0,
+			particleColorMix: 1.0,
+			particleMotionRadius: 1.0
 		};
+
+		// Charger les paramètres sauvegardés et les fusionner avec les valeurs par défaut
+		const savedParams = localStorage.getItem('visualizerParams');
+		if (savedParams) {
+			try {
+				const params = JSON.parse(savedParams);
+				if (params.animationSpeed !== undefined) {
+					this.animationSpeed = params.animationSpeed;
+				}
+				this.gridParams = { ...defaultParams, ...params };
+			} catch (e) {
+				console.error('Erreur lors du chargement des paramètres:', e);
+				this.gridParams = defaultParams;
+			}
+		} else {
+			this.gridParams = defaultParams;
+		}
 
 		// Ajouter le contrôle de la caméra
 		this.isDragging = false;
@@ -194,7 +220,7 @@ export class AudioVisualizer {
 				min: 1.0,
 				max: 10.0,
 				step: 0.5,
-				default: 5.0,
+				default: 1.5,
 				param: "gridParams",
 			},
 			{
@@ -383,10 +409,105 @@ export class AudioVisualizer {
 			}
 		];
 
+		// Nouveaux sliders pour les particules
+		const particleSliders = [
+			{
+				name: "Nombre de particules",
+				key: "particleCount",
+				min: 1000,
+				max: 20000,
+				step: 1000,
+				default: 5000,
+				param: "gridParams",
+				onChange: () => {
+					// Réinitialiser le système de particules avec le nouveau nombre
+					this.initParticleSystem();
+				}
+			},
+			{
+				name: "Taille des particules",
+				key: "particleSize",
+				min: 1.0,
+				max: 20.0,
+				step: 0.5,
+				default: 7.0,
+				param: "gridParams",
+				onChange: () => this.initParticleSystem()
+			},
+			{
+				name: "Variation de taille",
+				key: "particleSizeVariation",
+				min: 0.0,
+				max: 10.0,
+				step: 0.5,
+				default: 5.0,
+				param: "gridParams",
+				onChange: () => this.initParticleSystem()
+			},
+			{
+				name: "Vitesse des particules",
+				key: "particleSpeed",
+				min: 0.1,
+				max: 2.0,
+				step: 0.1,
+				default: 0.5,
+				param: "gridParams"
+			},
+			{
+				name: "Intensité de pulsation",
+				key: "particlePulseIntensity",
+				min: 0.0,
+				max: 2.0,
+				step: 0.1,
+				default: 0.5,
+				param: "gridParams"
+			},
+			{
+				name: "Transparence",
+				key: "particleAlpha",
+				min: 0.1,
+				max: 1.0,
+				step: 0.1,
+				default: 0.7,
+				param: "gridParams"
+			},
+			{
+				name: "Dispersion",
+				key: "particleSpread",
+				min: 5.0,
+				max: 20.0,
+				step: 0.5,
+				default: 10.0,
+				param: "gridParams",
+				onChange: () => this.initParticleSystem()
+			},
+			{
+				name: "Mélange de couleurs",
+				key: "particleColorMix",
+				min: 0.0,
+				max: 1.0,
+				step: 0.1,
+				default: 1.0,
+				param: "gridParams",
+				onChange: () => this.initParticleSystem()
+			},
+			{
+				name: "Rayon de mouvement",
+				key: "particleMotionRadius",
+				min: 0.1,
+				max: 2.0,
+				step: 0.1,
+				default: 1.0,
+				param: "gridParams",
+				onChange: () => this.initParticleSystem()
+			}
+		];
+
 		// Ajouter les nouveaux sliders à la configuration existante
 		sliderConfigs.push(...additionalSliders);
+		sliderConfigs.push(...particleSliders);
 
-		// Créer les sliders
+		// Modifier la création des sliders pour utiliser les valeurs sauvegardées
 		for (const config of sliderConfigs) {
 			const container = document.createElement("div");
 			container.style.display = "flex";
@@ -409,12 +530,18 @@ export class AudioVisualizer {
 			slider.min = config.min;
 			slider.max = config.max;
 			slider.step = config.step;
-			slider.value = config.default;
+			
+			// Utiliser la valeur sauvegardée ou la valeur par défaut
+			const savedValue = config.param ? 
+				this[config.param][config.key] : 
+				this[config.key];
+			slider.value = savedValue;
+
 			slider.style.width = "150px";
 			slider.style.accentColor = "#4CAF50";
 
 			const value = document.createElement("span");
-			value.textContent = config.default.toFixed(2);
+			value.textContent = savedValue.toFixed(2);
 			value.style.color = "#fff";
 			value.style.fontSize = "12px";
 			value.style.fontFamily = "monospace";
@@ -433,6 +560,9 @@ export class AudioVisualizer {
 				if (config.onChange) {
 					config.onChange(val);
 				}
+
+				// Sauvegarder les paramètres après chaque changement
+				this.saveParams();
 			});
 
 			sliderContainer.appendChild(slider);
@@ -450,6 +580,9 @@ export class AudioVisualizer {
 			console.error("WebGL non supporté");
 			return;
 		}
+
+		// Initialiser le système de particules
+		this.initParticleSystem();
 
 		// Augmenter le nombre de lignes pour plus de détail
 		this.gridLines = 200;
@@ -925,6 +1058,24 @@ export class AudioVisualizer {
 		const viewMatrix = this.createViewMatrix();
 		const modelMatrix = this.createModelMatrix();
 
+		// Calculer l'intensité des basses pour les particules
+		const bassFrequencies = this.dataArray.slice(0, Math.floor(this.dataArray.length * 0.1));
+		const bassIntensity = bassFrequencies.reduce((sum, value) => sum + value, 0) / (bassFrequencies.length * 255);
+
+		// Effacer le canvas
+		this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+		this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+
+		// Dessiner les particules en premier
+		this.gl.enable(this.gl.BLEND);
+		this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE);
+		this.drawParticles(projectionMatrix, viewMatrix, modelMatrix, bassIntensity);
+
+		// Restaurer le blend mode pour la grille
+		this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+
+		// Dessiner la grille
+		this.gl.useProgram(this.program);
 		const positions = this.getLinesPositions();
 		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
 		this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
@@ -962,9 +1113,6 @@ export class AudioVisualizer {
 		this.gl.uniform1f(this.colorCycleSpeedLocation, this.gridParams.colorCycleSpeed);
 		this.gl.uniform1f(this.colorSaturationLocation, this.gridParams.colorSaturation);
 		this.gl.uniform1f(this.depthEffectLocation, this.gridParams.depthEffect);
-
-		this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
-		this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
 
 		this.gl.drawArrays(this.gl.LINES, 0, positions.length / 3);
 
@@ -1086,5 +1234,191 @@ export class AudioVisualizer {
 			return null;
 		}
 		return shader;
+	}
+
+	initParticleSystem() {
+		// Vertex shader pour les particules
+		const particleVsSource = `
+			attribute vec3 aPosition;
+			attribute vec2 aOffset;
+			attribute float aSize;
+			attribute vec3 aColor;
+			
+			uniform mat4 uProjectionMatrix;
+			uniform mat4 uViewMatrix;
+			uniform mat4 uModelMatrix;
+			uniform float uTime;
+			uniform float uBassIntensity;
+			uniform float uParticleSpeed;
+			uniform float uParticlePulseIntensity;
+			uniform float uParticleAlpha;
+			
+			varying vec3 vColor;
+			varying float vAlpha;
+			
+			void main() {
+				// Position de base de la particule
+				vec3 position = aPosition;
+				
+				// Mouvement sinusoïdal basé sur le temps et la position
+				float speed = uParticleSpeed;
+				position.x += sin(uTime * speed + position.y) * aOffset.x;
+				position.y += cos(uTime * speed + position.x) * aOffset.y;
+				position.z += sin(uTime * speed * 0.5) * (aOffset.x + aOffset.y) * 0.5;
+				
+				// Ajouter un effet de pulsation basé sur les basses
+				float pulse = 1.0 + uBassIntensity * uParticlePulseIntensity;
+				position *= pulse;
+				
+				gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(position, 1.0);
+				
+				// Taille variable des points en fonction de la distance et des basses
+				float size = aSize * (1.0 + uBassIntensity * uParticlePulseIntensity);
+				gl_PointSize = size / gl_Position.w;
+				
+				// Couleur et transparence
+				vColor = aColor;
+				vAlpha = uParticleAlpha * (1.0 - gl_Position.z / 10.0);
+			}
+		`;
+
+		// Fragment shader pour les particules
+		const particleFsSource = `
+			precision mediump float;
+			varying vec3 vColor;
+			varying float vAlpha;
+			
+			void main() {
+				// Créer une particule circulaire avec un dégradé doux
+				vec2 coord = gl_PointCoord * 2.0 - 1.0;
+				float r = length(coord);
+				float a = 1.0 - smoothstep(0.0, 1.0, r);
+				
+				gl_FragColor = vec4(vColor, vAlpha * a);
+			}
+		`;
+
+		// Compiler les shaders pour les particules
+		const particleVs = this.compileShader(particleVsSource, this.gl.VERTEX_SHADER);
+		const particleFs = this.compileShader(particleFsSource, this.gl.FRAGMENT_SHADER);
+
+		// Créer le programme pour les particules
+		this.particleProgram = this.gl.createProgram();
+		this.gl.attachShader(this.particleProgram, particleVs);
+		this.gl.attachShader(this.particleProgram, particleFs);
+		this.gl.linkProgram(this.particleProgram);
+
+		if (!this.gl.getProgramParameter(this.particleProgram, this.gl.LINK_STATUS)) {
+			console.error("Erreur lors de l'initialisation des shaders de particules");
+			return;
+		}
+
+		// Créer les particules
+		const numParticles = this.gridParams.particleCount;
+		const particlePositions = new Float32Array(numParticles * 3);
+		const particleOffsets = new Float32Array(numParticles * 2);
+		const particleSizes = new Float32Array(numParticles);
+		const particleColors = new Float32Array(numParticles * 3);
+
+		for (let i = 0; i < numParticles; i++) {
+			// Position aléatoire dans un cube
+			particlePositions[i * 3] = (Math.random() - 0.5) * this.gridParams.particleSpread;
+			particlePositions[i * 3 + 1] = (Math.random() - 0.5) * this.gridParams.particleSpread;
+			particlePositions[i * 3 + 2] = (Math.random() - 0.5) * this.gridParams.particleSpread;
+
+			// Offset pour le mouvement
+			particleOffsets[i * 2] = (Math.random() * 2 - 1) * this.gridParams.particleMotionRadius;
+			particleOffsets[i * 2 + 1] = (Math.random() * 2 - 1) * this.gridParams.particleMotionRadius;
+
+			// Taille aléatoire
+			particleSizes[i] = this.gridParams.particleSize + 
+				(Math.random() - 0.5) * this.gridParams.particleSizeVariation;
+
+			// Couleur avec mélange ajustable
+			const baseColor = [Math.random(), Math.random(), Math.random()];
+			const mixColor = [1, 1, 1]; // Couleur de mélange (blanc)
+			const mix = Math.random() * this.gridParams.particleColorMix;
+			
+			particleColors[i * 3] = baseColor[0] * (1 - mix) + mixColor[0] * mix;
+			particleColors[i * 3 + 1] = baseColor[1] * (1 - mix) + mixColor[1] * mix;
+			particleColors[i * 3 + 2] = baseColor[2] * (1 - mix) + mixColor[2] * mix;
+		}
+
+		// Créer et remplir les buffers
+		this.particlePositionBuffer = this.gl.createBuffer();
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particlePositionBuffer);
+		this.gl.bufferData(this.gl.ARRAY_BUFFER, particlePositions, this.gl.STATIC_DRAW);
+
+		this.particleOffsetBuffer = this.gl.createBuffer();
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particleOffsetBuffer);
+		this.gl.bufferData(this.gl.ARRAY_BUFFER, particleOffsets, this.gl.STATIC_DRAW);
+
+		this.particleSizeBuffer = this.gl.createBuffer();
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particleSizeBuffer);
+		this.gl.bufferData(this.gl.ARRAY_BUFFER, particleSizes, this.gl.STATIC_DRAW);
+
+		this.particleColorBuffer = this.gl.createBuffer();
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particleColorBuffer);
+		this.gl.bufferData(this.gl.ARRAY_BUFFER, particleColors, this.gl.STATIC_DRAW);
+
+		// Obtenir les emplacements des attributs et uniformes
+		this.particleProgram.positionLocation = this.gl.getAttribLocation(this.particleProgram, "aPosition");
+		this.particleProgram.offsetLocation = this.gl.getAttribLocation(this.particleProgram, "aOffset");
+		this.particleProgram.sizeLocation = this.gl.getAttribLocation(this.particleProgram, "aSize");
+		this.particleProgram.colorLocation = this.gl.getAttribLocation(this.particleProgram, "aColor");
+
+		this.particleProgram.projectionLocation = this.gl.getUniformLocation(this.particleProgram, "uProjectionMatrix");
+		this.particleProgram.viewLocation = this.gl.getUniformLocation(this.particleProgram, "uViewMatrix");
+		this.particleProgram.modelLocation = this.gl.getUniformLocation(this.particleProgram, "uModelMatrix");
+		this.particleProgram.timeLocation = this.gl.getUniformLocation(this.particleProgram, "uTime");
+		this.particleProgram.bassIntensityLocation = this.gl.getUniformLocation(this.particleProgram, "uBassIntensity");
+		this.particleProgram.particleSpeedLocation = this.gl.getUniformLocation(this.particleProgram, "uParticleSpeed");
+		this.particleProgram.particlePulseIntensityLocation = this.gl.getUniformLocation(this.particleProgram, "uParticlePulseIntensity");
+		this.particleProgram.particleAlphaLocation = this.gl.getUniformLocation(this.particleProgram, "uParticleAlpha");
+
+		this.numParticles = numParticles;
+	}
+
+	drawParticles(projectionMatrix, viewMatrix, modelMatrix, bassIntensity) {
+		this.gl.useProgram(this.particleProgram);
+
+		// Activer les attributs
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particlePositionBuffer);
+		this.gl.enableVertexAttribArray(this.particleProgram.positionLocation);
+		this.gl.vertexAttribPointer(this.particleProgram.positionLocation, 3, this.gl.FLOAT, false, 0, 0);
+
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particleOffsetBuffer);
+		this.gl.enableVertexAttribArray(this.particleProgram.offsetLocation);
+		this.gl.vertexAttribPointer(this.particleProgram.offsetLocation, 2, this.gl.FLOAT, false, 0, 0);
+
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particleSizeBuffer);
+		this.gl.enableVertexAttribArray(this.particleProgram.sizeLocation);
+		this.gl.vertexAttribPointer(this.particleProgram.sizeLocation, 1, this.gl.FLOAT, false, 0, 0);
+
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particleColorBuffer);
+		this.gl.enableVertexAttribArray(this.particleProgram.colorLocation);
+		this.gl.vertexAttribPointer(this.particleProgram.colorLocation, 3, this.gl.FLOAT, false, 0, 0);
+
+		// Définir les uniformes
+		this.gl.uniformMatrix4fv(this.particleProgram.projectionLocation, false, projectionMatrix);
+		this.gl.uniformMatrix4fv(this.particleProgram.viewLocation, false, viewMatrix);
+		this.gl.uniformMatrix4fv(this.particleProgram.modelLocation, false, modelMatrix);
+		this.gl.uniform1f(this.particleProgram.timeLocation, performance.now() / 1000);
+		this.gl.uniform1f(this.particleProgram.bassIntensityLocation, bassIntensity);
+		this.gl.uniform1f(this.particleProgram.particleSpeedLocation, this.gridParams.particleSpeed);
+		this.gl.uniform1f(this.particleProgram.particlePulseIntensityLocation, this.gridParams.particlePulseIntensity);
+		this.gl.uniform1f(this.particleProgram.particleAlphaLocation, this.gridParams.particleAlpha);
+
+		// Dessiner les particules
+		this.gl.drawArrays(this.gl.POINTS, 0, this.numParticles);
+	}
+
+	// Fonction pour sauvegarder les paramètres
+	saveParams() {
+		const params = {
+			...this.gridParams,
+			animationSpeed: this.animationSpeed
+		};
+		localStorage.setItem('visualizerParams', JSON.stringify(params));
 	}
 }
