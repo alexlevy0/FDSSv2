@@ -1,6 +1,7 @@
 import { Spring } from "./spring.js";
 import { mainVertexShader, mainFragmentShader, particleVertexShader, particleFragmentShader } from "./shaders.js";
 import { mainSliderConfigs, gridCrossSliderConfigs, particleSliderConfigs } from "./sliderConfigs.js";
+import { lookAt, createScaleMatrix } from "./mathUtils.js";
 
 export class AudioVisualizer {
 	constructor(canvas) {
@@ -715,35 +716,27 @@ export class AudioVisualizer {
 	}
 
 	createModelMatrix() {
-		// Matrice de mise à l'échelle pour le zoom
-		const scale = this.zoom;
-		return [scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, 1];
+		return createScaleMatrix(this.zoom);
 	}
 
 	createViewMatrix() {
 		const time = performance.now() / 1000;
-
-		// Calculer la position de la caméra
 		const radius = Math.max(12.0, 12.0 * this.aspectRatio) / this.zoom;
 
-		// Si la rotation automatique est activée, utiliser le temps
 		if (this.autoRotate) {
 			this.rotation += 0.002 + Math.sin(time * 0.1) * 0.001;
 			this.cameraRotationY = this.rotation;
 		}
 
-		// Appliquer les rotations de la caméra
-		const eyeX =
-			Math.sin(this.cameraRotationY) * Math.cos(this.cameraRotationX) * radius;
+		const eyeX = Math.sin(this.cameraRotationY) * Math.cos(this.cameraRotationX) * radius;
 		const eyeY = Math.sin(this.cameraRotationX) * radius;
-		const eyeZ =
-			Math.cos(this.cameraRotationY) * Math.cos(this.cameraRotationX) * radius;
+		const eyeZ = Math.cos(this.cameraRotationY) * Math.cos(this.cameraRotationX) * radius;
 
 		const eye = [eyeX, 5.0 / this.zoom + eyeY, eyeZ];
 		const center = [0, 0, 0];
 		const up = [0, 1, 0];
 
-		return this.lookAt(eye, center, up);
+		return lookAt(eye, center, up);
 	}
 
 	perspective(fovy, aspect, near, far) {
@@ -767,52 +760,6 @@ export class AudioVisualizer {
 			2 * far * near * nf,
 			0,
 		];
-	}
-
-	lookAt(eye, center, up) {
-		const z = this.normalize(this.subtract(eye, center));
-		const x = this.normalize(this.cross(up, z));
-		const y = this.cross(z, x);
-
-		return [
-			x[0],
-			y[0],
-			z[0],
-			0,
-			x[1],
-			y[1],
-			z[1],
-			0,
-			x[2],
-			y[2],
-			z[2],
-			0,
-			-this.dot(x, eye),
-			-this.dot(y, eye),
-			-this.dot(z, eye),
-			1,
-		];
-	}
-
-	normalize(v) {
-		const length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-		return [v[0] / length, v[1] / length, v[2] / length];
-	}
-
-	subtract(a, b) {
-		return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-	}
-
-	cross(a, b) {
-		return [
-			a[1] * b[2] - a[2] * b[1],
-			a[2] * b[0] - a[0] * b[2],
-			a[0] * b[1] - a[1] * b[0],
-		];
-	}
-
-	dot(a, b) {
-		return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 	}
 
 	compileShader(source, type) {
