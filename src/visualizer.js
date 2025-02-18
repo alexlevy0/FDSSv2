@@ -15,8 +15,45 @@ export class AudioVisualizer {
 		this.maxZoom = 5.0;
 		this.gridSize = 4.0;
 		this.aspectRatio = this.canvas.width / this.canvas.height;
+		this.animationSpeed = 1.0; // Vitesse d'animation par défaut
+
+		// Nouveaux paramètres ajustables
+		this.gridParams = {
+			maxHeight: 5.0,
+			bassWeight: 1.4,
+			midWeight: 1.2,
+			highWeight: 1.1,
+			smoothingTimeConstant: 0.5,
+			waveIntensity: 0.15,
+			colorIntensity: 0.5,
+			alphaBase: 0.4,
+			alphaMultiplier: 4.0,
+			responseIntensity: 4.5,
+			// Nouveaux paramètres pour la grille et la croix
+			gridDensity: 200,
+			crossSize: 0.1,
+			crossIntensity: 1.0,
+			crossRotationSpeed: 1.0,
+			crossWaveFrequency: 1.0,
+			gridWaveSpeed: 1.0,
+			gridWaveFrequency: 1.0,
+			colorCycleSpeed: 1.0,
+			colorSaturation: 1.0,
+			depthEffect: 1.0
+		};
+
+		// Ajouter le contrôle de la caméra
+		this.isDragging = false;
+		this.lastMouseX = 0;
+		this.lastMouseY = 0;
+		this.cameraRotationX = 0;
+		this.cameraRotationY = 0;
+		this.autoRotate = true;
+
 		this.init();
 		this.setupZoomControl();
+		this.setupMouseControl();
+		this.setupSpeedControl();
 	}
 
 	setupZoomControl() {
@@ -36,21 +73,396 @@ export class AudioVisualizer {
 		);
 	}
 
+	setupMouseControl() {
+		this.canvas.addEventListener("mousedown", (e) => {
+			this.isDragging = true;
+			this.lastMouseX = e.clientX;
+			this.lastMouseY = e.clientY;
+			this.autoRotate = false;
+		});
+
+		document.addEventListener("mouseup", () => {
+			this.isDragging = false;
+		});
+
+		document.addEventListener("mousemove", (e) => {
+			if (!this.isDragging) return;
+
+			const deltaX = e.clientX - this.lastMouseX;
+			const deltaY = e.clientY - this.lastMouseY;
+
+			this.cameraRotationY += deltaX * 0.005;
+			this.cameraRotationX = Math.max(
+				-Math.PI / 3,
+				Math.min(Math.PI / 3, this.cameraRotationX + deltaY * 0.005),
+			);
+
+			this.lastMouseX = e.clientX;
+			this.lastMouseY = e.clientY;
+		});
+
+		// Double-clic pour réinitialiser la rotation automatique
+		this.canvas.addEventListener("dblclick", () => {
+			this.autoRotate = true;
+			this.cameraRotationX = 0;
+			this.cameraRotationY = 0;
+		});
+	}
+
+	setupSpeedControl() {
+		// Créer le conteneur principal
+		const controlsContainer = document.createElement("div");
+		controlsContainer.style.position = "fixed";
+		controlsContainer.style.left = "20px";
+		controlsContainer.style.bottom = "20px";
+		controlsContainer.style.zIndex = "1000";
+		controlsContainer.style.background = "rgba(0, 0, 0, 0.8)";
+		controlsContainer.style.borderRadius = "12px";
+		controlsContainer.style.width = "250px";
+		controlsContainer.style.transition = "transform 0.3s ease-in-out";
+
+		// Créer le header
+		const header = document.createElement("div");
+		header.style.padding = "15px";
+		header.style.display = "flex";
+		header.style.justifyContent = "space-between";
+		header.style.alignItems = "center";
+		header.style.borderBottom = "1px solid rgba(255, 255, 255, 0.1)";
+		header.style.cursor = "pointer";
+
+		// Titre
+		const title = document.createElement("h3");
+		title.textContent = "Contrôles de la grille";
+		title.style.color = "#fff";
+		title.style.margin = "0";
+		title.style.fontSize = "14px";
+		title.style.fontFamily = "Arial, sans-serif";
+
+		// Bouton toggle
+		const toggleButton = document.createElement("button");
+		toggleButton.innerHTML = "▼";
+		toggleButton.style.background = "none";
+		toggleButton.style.border = "none";
+		toggleButton.style.color = "#fff";
+		toggleButton.style.fontSize = "12px";
+		toggleButton.style.cursor = "pointer";
+		toggleButton.style.padding = "5px";
+		toggleButton.style.transition = "transform 0.3s ease";
+
+		header.appendChild(title);
+		header.appendChild(toggleButton);
+		controlsContainer.appendChild(header);
+
+		// Conteneur pour les sliders
+		const slidersContainer = document.createElement("div");
+		slidersContainer.style.padding = "15px";
+		slidersContainer.style.maxHeight = "60vh";
+		slidersContainer.style.overflowY = "auto";
+		slidersContainer.style.display = "flex";
+		slidersContainer.style.flexDirection = "column";
+		slidersContainer.style.gap = "10px";
+		slidersContainer.style.transition = "max-height 0.3s ease-in-out, padding 0.3s ease-in-out";
+		controlsContainer.appendChild(slidersContainer);
+
+		// État initial
+		let isExpanded = true;
+
+		// Fonction pour toggle le menu
+		const toggleMenu = () => {
+			isExpanded = !isExpanded;
+			slidersContainer.style.maxHeight = isExpanded ? "60vh" : "0";
+			slidersContainer.style.padding = isExpanded ? "15px" : "0 15px";
+			toggleButton.style.transform = isExpanded ? "rotate(0deg)" : "rotate(-90deg)";
+		};
+
+		// Ajouter les événements de clic
+		header.addEventListener("click", toggleMenu);
+
+		// Configuration des sliders
+		const sliderConfigs = [
+			{
+				name: "Vitesse d'animation",
+				key: "animationSpeed",
+				min: 0.1,
+				max: 3.0,
+				step: 0.1,
+				default: 1.0,
+			},
+			{
+				name: "Hauteur maximale",
+				key: "maxHeight",
+				min: 1.0,
+				max: 10.0,
+				step: 0.5,
+				default: 5.0,
+				param: "gridParams",
+			},
+			{
+				name: "Poids des basses",
+				key: "bassWeight",
+				min: 0.5,
+				max: 2.0,
+				step: 0.1,
+				default: 1.4,
+				param: "gridParams",
+			},
+			{
+				name: "Poids des mediums",
+				key: "midWeight",
+				min: 0.5,
+				max: 2.0,
+				step: 0.1,
+				default: 1.2,
+				param: "gridParams",
+			},
+			{
+				name: "Poids des aigus",
+				key: "highWeight",
+				min: 0.5,
+				max: 2.0,
+				step: 0.1,
+				default: 1.1,
+				param: "gridParams",
+			},
+			{
+				name: "Lissage temporel",
+				key: "smoothingTimeConstant",
+				min: 0.1,
+				max: 0.95,
+				step: 0.05,
+				default: 0.5,
+				param: "gridParams",
+				onChange: (value) => {
+					if (this.analyser) {
+						this.analyser.smoothingTimeConstant = value;
+					}
+				},
+			},
+			{
+				name: "Intensité des vagues",
+				key: "waveIntensity",
+				min: 0.0,
+				max: 0.5,
+				step: 0.01,
+				default: 0.15,
+				param: "gridParams",
+			},
+			{
+				name: "Intensité des couleurs",
+				key: "colorIntensity",
+				min: 0.1,
+				max: 1.0,
+				step: 0.1,
+				default: 0.5,
+				param: "gridParams",
+			},
+			{
+				name: "Transparence de base",
+				key: "alphaBase",
+				min: 0.1,
+				max: 0.9,
+				step: 0.1,
+				default: 0.4,
+				param: "gridParams",
+			},
+			{
+				name: "Multiplicateur alpha",
+				key: "alphaMultiplier",
+				min: 1.0,
+				max: 8.0,
+				step: 0.5,
+				default: 4.0,
+				param: "gridParams",
+			},
+			{
+				name: "Intensité de réponse",
+				key: "responseIntensity",
+				min: 1.0,
+				max: 8.0,
+				step: 0.5,
+				default: 4.5,
+				param: "gridParams",
+			},
+		];
+
+		// Nouveaux sliders pour la grille et la croix
+		const additionalSliders = [
+			{
+				name: "Densité de la grille",
+				key: "gridDensity",
+				min: 50,
+				max: 400,
+				step: 10,
+				default: 200,
+				param: "gridParams",
+				onChange: (value) => {
+					this.gridLines = value;
+					this.setGridSize(this.gridSize);
+				}
+			},
+			{
+				name: "Taille de la croix",
+				key: "crossSize",
+				min: 0.0,
+				max: 0.5,
+				step: 0.01,
+				default: 0.1,
+				param: "gridParams"
+			},
+			{
+				name: "Intensité de la croix",
+				key: "crossIntensity",
+				min: 0.0,
+				max: 2.0,
+				step: 0.1,
+				default: 1.0,
+				param: "gridParams"
+			},
+			{
+				name: "Vitesse rotation croix",
+				key: "crossRotationSpeed",
+				min: 0.0,
+				max: 2.0,
+				step: 0.1,
+				default: 1.0,
+				param: "gridParams"
+			},
+			{
+				name: "Fréquence vagues croix",
+				key: "crossWaveFrequency",
+				min: 0.1,
+				max: 5.0,
+				step: 0.1,
+				default: 1.0,
+				param: "gridParams"
+			},
+			{
+				name: "Vitesse vagues grille",
+				key: "gridWaveSpeed",
+				min: 0.1,
+				max: 5.0,
+				step: 0.1,
+				default: 1.0,
+				param: "gridParams"
+			},
+			{
+				name: "Fréquence vagues grille",
+				key: "gridWaveFrequency",
+				min: 0.1,
+				max: 5.0,
+				step: 0.1,
+				default: 1.0,
+				param: "gridParams"
+			},
+			{
+				name: "Vitesse cycle couleurs",
+				key: "colorCycleSpeed",
+				min: 0.1,
+				max: 3.0,
+				step: 0.1,
+				default: 1.0,
+				param: "gridParams"
+			},
+			{
+				name: "Saturation couleurs",
+				key: "colorSaturation",
+				min: 0.0,
+				max: 2.0,
+				step: 0.1,
+				default: 1.0,
+				param: "gridParams"
+			},
+			{
+				name: "Effet de profondeur",
+				key: "depthEffect",
+				min: 0.0,
+				max: 2.0,
+				step: 0.1,
+				default: 1.0,
+				param: "gridParams"
+			}
+		];
+
+		// Ajouter les nouveaux sliders à la configuration existante
+		sliderConfigs.push(...additionalSliders);
+
+		// Créer les sliders
+		for (const config of sliderConfigs) {
+			const container = document.createElement("div");
+			container.style.display = "flex";
+			container.style.flexDirection = "column";
+			container.style.gap = "2px";
+
+			const label = document.createElement("label");
+			label.textContent = config.name;
+			label.style.color = "#fff";
+			label.style.fontSize = "12px";
+			label.style.fontFamily = "Arial, sans-serif";
+
+			const sliderContainer = document.createElement("div");
+			sliderContainer.style.display = "flex";
+			sliderContainer.style.alignItems = "center";
+			sliderContainer.style.gap = "10px";
+
+			const slider = document.createElement("input");
+			slider.type = "range";
+			slider.min = config.min;
+			slider.max = config.max;
+			slider.step = config.step;
+			slider.value = config.default;
+			slider.style.width = "150px";
+			slider.style.accentColor = "#4CAF50";
+
+			const value = document.createElement("span");
+			value.textContent = config.default.toFixed(2);
+			value.style.color = "#fff";
+			value.style.fontSize = "12px";
+			value.style.fontFamily = "monospace";
+			value.style.minWidth = "45px";
+
+			slider.addEventListener("input", (e) => {
+				const val = Number.parseFloat(e.target.value);
+				value.textContent = val.toFixed(2);
+
+				if (config.param) {
+					this[config.param][config.key] = val;
+				} else {
+					this[config.key] = val;
+				}
+
+				if (config.onChange) {
+					config.onChange(val);
+				}
+			});
+
+			sliderContainer.appendChild(slider);
+			sliderContainer.appendChild(value);
+			container.appendChild(label);
+			container.appendChild(sliderContainer);
+			slidersContainer.appendChild(container);
+		}
+
+		document.body.appendChild(controlsContainer);
+	}
+
 	init() {
 		if (!this.gl) {
 			console.error("WebGL non supporté");
 			return;
 		}
 
+		// Augmenter le nombre de lignes pour plus de détail
+		this.gridLines = 200;
+
 		// Initialiser les lignes de la grille avec un espacement plus fin
 		for (let j = 1; j < this.gridLines; j++) {
 			this.lines.push({
 				axis: "x",
-				offset: new Spring(0.85, 0.1, (j / this.gridLines) * 2 - 1),
+				offset: new Spring(0.02, 0.9, (j / this.gridLines) * 2 - 1),
 			});
 			this.lines.push({
 				axis: "y",
-				offset: new Spring(0.85, 0.1, (j / this.gridLines) * 2 - 1),
+				offset: new Spring(0.02, 0.9, (j / this.gridLines) * 2 - 1),
 			});
 		}
 
@@ -63,24 +475,115 @@ export class AudioVisualizer {
             uniform mat4 uModelMatrix;
             uniform sampler2D uFrequencyData;
             uniform float uGridMaxHeight;
+            uniform float uTime;
+            uniform float uWaveIntensity;
+            uniform float uColorIntensity;
+            uniform float uAlphaBase;
+            uniform float uAlphaMultiplier;
+            uniform float uCrossSize;
+            uniform float uCrossIntensity;
+            uniform float uCrossRotationSpeed;
+            uniform float uCrossWaveFrequency;
+            uniform float uGridWaveSpeed;
+            uniform float uGridWaveFrequency;
+            uniform float uColorCycleSpeed;
+            uniform float uColorSaturation;
+            uniform float uDepthEffect;
             
             varying vec4 vColor;
             
             void main() {
                 vec2 lookup = (aPosition.xy + 1.0) * 0.5;
-                float frequency = texture2D(uFrequencyData, lookup).r;
+                float x = lookup.x;
+                float y = lookup.y;
+                
+                // Calcul de la distance au centre pour l'effet de croix
+                vec2 center = vec2(0.5, 0.5);
+                vec2 toCenter = lookup - center;
+                float distanceToCenter = length(toCenter);
+                
+                // Rotation de la croix
+                float crossRotation = uTime * uCrossRotationSpeed;
+                vec2 rotatedCoord = vec2(
+                    toCenter.x * cos(crossRotation) - toCenter.y * sin(crossRotation),
+                    toCenter.x * sin(crossRotation) + toCenter.y * cos(crossRotation)
+                );
+                
+                // Effet de croix
+                float crossEffect = max(
+                    smoothstep(uCrossSize, 0.0, abs(rotatedCoord.x)),
+                    smoothstep(uCrossSize, 0.0, abs(rotatedCoord.y))
+                ) * uCrossIntensity;
+                
+                vec2 coord1 = vec2(x, y);
+                vec2 coord2 = vec2(1.0 - y, x);
+                vec2 coord3 = vec2(1.0 - x, 1.0 - y);
+                vec2 coord4 = vec2(y, 1.0 - x);
+                
+                float freq1 = texture2D(uFrequencyData, coord1).r;
+                float freq2 = texture2D(uFrequencyData, coord2).r;
+                float freq3 = texture2D(uFrequencyData, coord3).r;
+                float freq4 = texture2D(uFrequencyData, coord4).r;
+                
+                float yWeight = smoothstep(0.0, 1.0, y);
+                float xWeight = smoothstep(0.0, 1.0, x);
+                
+                float frequency = max(
+                    max(freq1 * (1.0 + yWeight), freq2 * (1.0 + xWeight)),
+                    max(freq3 * (2.0 - yWeight), freq4 * (2.0 - xWeight))
+                );
+                
+                // Ajouter l'effet de croix à la fréquence
+                frequency = mix(frequency, frequency * (1.0 + crossEffect), crossEffect);
                 
                 vec3 position = aPosition;
-                position.z = frequency * uGridMaxHeight * (1.0 + sin(frequency * 10.0) * 0.3);
+                
+                // Vagues de la grille avec paramètres ajustables
+                float gridWave = sin(
+                    x * uGridWaveFrequency * 6.0 + 
+                    y * uGridWaveFrequency * 4.0 + 
+                    uTime * uGridWaveSpeed * 2.0
+                ) * uWaveIntensity;
+                
+                // Vagues de la croix
+                float crossWave = sin(
+                    distanceToCenter * uCrossWaveFrequency * 10.0 + 
+                    uTime * uGridWaveSpeed
+                ) * crossEffect * uWaveIntensity;
+                
+                position.z = frequency * uGridMaxHeight * (
+                    1.0 + 
+                    gridWave + 
+                    crossWave + 
+                    sin(frequency * 10.0) * 0.3
+                );
+                
+                // Effet de profondeur
+                position.z *= mix(1.0, 1.0 - distanceToCenter, uDepthEffect);
                 
                 gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(position, 1.0);
                 
+                // Couleurs avec cycle et saturation ajustables
                 vec3 color = vec3(
-                    sin(frequency * 8.0 + position.x) * 0.5 + 0.5,
-                    sin(frequency * 6.0 + position.y) * 0.5 + 0.5,
-                    cos(frequency * 4.0) * 0.5 + 0.5
+                    sin(frequency * 8.0 + y * 3.0 + uTime * uColorCycleSpeed) * 0.5 + 0.5,
+                    sin(frequency * 6.0 + x * 5.0 + uTime * uColorCycleSpeed * 0.7) * 0.5 + 0.5,
+                    cos(frequency * 4.0 + (x + y) * 2.0 + uTime * uColorCycleSpeed * 0.5) * 0.5 + 0.5
                 );
-                float alpha = clamp(frequency * 3.5, 0.3, 1.0);
+                
+                // Ajuster la saturation
+                vec3 gray = vec3(dot(color, vec3(0.299, 0.587, 0.114)));
+                color = mix(gray, color, uColorSaturation);
+                
+                float heightIntensity = smoothstep(0.0, 1.0, position.z / uGridMaxHeight);
+                color = mix(color, vec3(1.0), frequency * uColorIntensity + heightIntensity * 0.3);
+                
+                // Ajuster l'alpha en fonction de la croix
+                float alpha = clamp(
+                    frequency * uAlphaMultiplier + crossEffect, 
+                    uAlphaBase, 
+                    1.0
+                );
+                
                 vColor = vec4(color, alpha);
             }
         `;
@@ -163,6 +666,59 @@ export class AudioVisualizer {
 			this.program,
 			"uGridMaxHeight",
 		);
+		this.timeLocation = this.gl.getUniformLocation(this.program, "uTime");
+		this.waveIntensityLocation = this.gl.getUniformLocation(
+			this.program,
+			"uWaveIntensity"
+		);
+		this.colorIntensityLocation = this.gl.getUniformLocation(
+			this.program,
+			"uColorIntensity"
+		);
+		this.alphaBaseLocation = this.gl.getUniformLocation(
+			this.program,
+			"uAlphaBase"
+		);
+		this.alphaMultiplierLocation = this.gl.getUniformLocation(
+			this.program,
+			"uAlphaMultiplier"
+		);
+		this.crossSizeLocation = this.gl.getUniformLocation(
+			this.program,
+			"uCrossSize"
+		);
+		this.crossIntensityLocation = this.gl.getUniformLocation(
+			this.program,
+			"uCrossIntensity"
+		);
+		this.crossRotationSpeedLocation = this.gl.getUniformLocation(
+			this.program,
+			"uCrossRotationSpeed"
+		);
+		this.crossWaveFrequencyLocation = this.gl.getUniformLocation(
+			this.program,
+			"uCrossWaveFrequency"
+		);
+		this.gridWaveSpeedLocation = this.gl.getUniformLocation(
+			this.program,
+			"uGridWaveSpeed"
+		);
+		this.gridWaveFrequencyLocation = this.gl.getUniformLocation(
+			this.program,
+			"uGridWaveFrequency"
+		);
+		this.colorCycleSpeedLocation = this.gl.getUniformLocation(
+			this.program,
+			"uColorCycleSpeed"
+		);
+		this.colorSaturationLocation = this.gl.getUniformLocation(
+			this.program,
+			"uColorSaturation"
+		);
+		this.depthEffectLocation = this.gl.getUniformLocation(
+			this.program,
+			"uDepthEffect"
+		);
 
 		this.gl.enableVertexAttribArray(this.positionAttribLocation);
 
@@ -201,11 +757,11 @@ export class AudioVisualizer {
 		for (let j = 1; j < this.gridLines; j++) {
 			this.lines.push({
 				axis: "x",
-				offset: new Spring(0.85, 0.1, (j / this.gridLines) * 2 - 1),
+				offset: new Spring(0.02, 0.9, (j / this.gridLines) * 2 - 1),
 			});
 			this.lines.push({
 				axis: "y",
-				offset: new Spring(0.85, 0.1, (j / this.gridLines) * 2 - 1),
+				offset: new Spring(0.02, 0.9, (j / this.gridLines) * 2 - 1),
 			});
 		}
 	}
@@ -254,13 +810,19 @@ export class AudioVisualizer {
 		this.audioContext = new (
 			window.AudioContext || window.webkitAudioContext
 		)();
-		const source = this.audioContext.createMediaElementSource(audioElement);
 		this.analyser = this.audioContext.createAnalyser();
 		this.analyser.fftSize = 2048;
-		this.analyser.smoothingTimeConstant = 0.65;
+		// Réduire le lissage pour plus de réactivité
+		this.analyser.smoothingTimeConstant = this.gridParams.smoothingTimeConstant;
+		// Ajuster la plage de décibels pour une meilleure dynamique
+		this.analyser.minDecibels = -70;
+		this.analyser.maxDecibels = -30;
 
-		source.connect(this.analyser);
-		this.analyser.connect(this.audioContext.destination);
+		if (audioElement) {
+			const source = this.audioContext.createMediaElementSource(audioElement);
+			source.connect(this.analyser);
+			this.analyser.connect(this.audioContext.destination);
+		}
 
 		this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
 	}
@@ -269,10 +831,66 @@ export class AudioVisualizer {
 		this.analyser.getByteFrequencyData(this.dataArray);
 
 		const normalizedData = new Uint8Array(this.dataArray.length);
-		for (let i = 0; i < this.dataArray.length; i++) {
-			// Améliorer la courbe de réponse pour plus d'impact
-			const value = this.dataArray[i];
-			normalizedData[i] = (value / 255) ** 0.4 * 255;
+		const frequencyBins = this.dataArray.length;
+
+		// Utiliser les paramètres ajustables
+		const { bassWeight, midWeight, highWeight } = this.gridParams;
+
+		for (let i = 0; i < frequencyBins; i++) {
+			let sum = 0;
+			let count = 0;
+
+			for (
+				let j = Math.max(0, i - 2);
+				j <= Math.min(frequencyBins - 1, i + 2);
+				j++
+			) {
+				sum += this.dataArray[j];
+				count++;
+			}
+
+			const value = sum / count;
+			let weight = midWeight;
+
+			if (i < frequencyBins * 0.33) {
+				weight = bassWeight;
+				if (i < frequencyBins * 0.1) {
+					weight *= 1.3;
+				}
+			} else if (i > frequencyBins * 0.66) {
+				weight = highWeight;
+				if (i > frequencyBins * 0.9) {
+					weight *= 1.2;
+				}
+			}
+
+			const normalizedValue = value / 255;
+			const response =
+				normalizedValue < 0.1
+					? normalizedValue * this.gridParams.responseIntensity
+					: normalizedValue ** 0.25;
+
+			normalizedData[i] = Math.min(255, response * 255 * weight);
+		}
+
+		// Distribution circulaire des données dans la texture
+		const textureSize = Math.ceil(Math.sqrt(this.dataArray.length));
+		const paddedData = new Uint8Array(textureSize * textureSize);
+
+		for (let y = 0; y < textureSize; y++) {
+			for (let x = 0; x < textureSize; x++) {
+				// Calculer l'index source avec une distribution circulaire
+				const angle = Math.atan2(y - textureSize / 2, x - textureSize / 2);
+				const radius = Math.sqrt(
+					(x - textureSize / 2) ** 2 + (y - textureSize / 2) ** 2,
+				);
+				const sourceIndex = Math.floor(
+					(((angle + Math.PI) / (2 * Math.PI)) * normalizedData.length +
+						radius) %
+						normalizedData.length,
+				);
+				paddedData[y * textureSize + x] = normalizedData[sourceIndex];
+			}
 		}
 
 		this.gl.bindTexture(this.gl.TEXTURE_2D, this.frequencyTexture);
@@ -280,12 +898,12 @@ export class AudioVisualizer {
 			this.gl.TEXTURE_2D,
 			0,
 			this.gl.LUMINANCE,
-			this.dataArray.length / 2,
-			2,
+			textureSize,
+			textureSize,
 			0,
 			this.gl.LUMINANCE,
 			this.gl.UNSIGNED_BYTE,
-			normalizedData,
+			paddedData,
 		);
 	}
 
@@ -294,8 +912,9 @@ export class AudioVisualizer {
 
 		this.updateFrequencyTexture();
 
-		// Rotation plus dynamique
-		this.rotation += 0.003;
+		const time = performance.now() / 1000;
+		this.rotation +=
+			(0.002 + Math.sin(time * 0.1) * 0.001) * this.animationSpeed;
 
 		const projectionMatrix = this.perspective(
 			(60 * Math.PI) / 180,
@@ -326,7 +945,23 @@ export class AudioVisualizer {
 		this.gl.uniformMatrix4fv(this.viewMatrixLocation, false, viewMatrix);
 		this.gl.uniformMatrix4fv(this.modelMatrixLocation, false, modelMatrix);
 		this.gl.uniform1i(this.frequencyDataLocation, 0);
-		this.gl.uniform1f(this.gridMaxHeightLocation, 4.5);
+		
+		// Mettre à jour les uniformes avec les valeurs des paramètres
+		this.gl.uniform1f(this.gridMaxHeightLocation, this.gridParams.maxHeight);
+		this.gl.uniform1f(this.timeLocation, time * this.animationSpeed);
+		this.gl.uniform1f(this.waveIntensityLocation, this.gridParams.waveIntensity);
+		this.gl.uniform1f(this.colorIntensityLocation, this.gridParams.colorIntensity);
+		this.gl.uniform1f(this.alphaBaseLocation, this.gridParams.alphaBase);
+		this.gl.uniform1f(this.alphaMultiplierLocation, this.gridParams.alphaMultiplier);
+		this.gl.uniform1f(this.crossSizeLocation, this.gridParams.crossSize);
+		this.gl.uniform1f(this.crossIntensityLocation, this.gridParams.crossIntensity);
+		this.gl.uniform1f(this.crossRotationSpeedLocation, this.gridParams.crossRotationSpeed);
+		this.gl.uniform1f(this.crossWaveFrequencyLocation, this.gridParams.crossWaveFrequency);
+		this.gl.uniform1f(this.gridWaveSpeedLocation, this.gridParams.gridWaveSpeed);
+		this.gl.uniform1f(this.gridWaveFrequencyLocation, this.gridParams.gridWaveFrequency);
+		this.gl.uniform1f(this.colorCycleSpeedLocation, this.gridParams.colorCycleSpeed);
+		this.gl.uniform1f(this.colorSaturationLocation, this.gridParams.colorSaturation);
+		this.gl.uniform1f(this.depthEffectLocation, this.gridParams.depthEffect);
 
 		this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
 		this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
@@ -343,15 +978,28 @@ export class AudioVisualizer {
 	}
 
 	createViewMatrix() {
-		// Ajuster le rayon en fonction du ratio d'aspect
+		const time = performance.now() / 1000;
+
+		// Calculer la position de la caméra
 		const radius = Math.max(12.0, 12.0 * this.aspectRatio) / this.zoom;
-		const eye = [
-			Math.sin(this.rotation) * radius,
-			5.0 / this.zoom,
-			Math.cos(this.rotation) * radius,
-		];
+
+		// Si la rotation automatique est activée, utiliser le temps
+		if (this.autoRotate) {
+			this.rotation += 0.002 + Math.sin(time * 0.1) * 0.001;
+			this.cameraRotationY = this.rotation;
+		}
+
+		// Appliquer les rotations de la caméra
+		const eyeX =
+			Math.sin(this.cameraRotationY) * Math.cos(this.cameraRotationX) * radius;
+		const eyeY = Math.sin(this.cameraRotationX) * radius;
+		const eyeZ =
+			Math.cos(this.cameraRotationY) * Math.cos(this.cameraRotationX) * radius;
+
+		const eye = [eyeX, 5.0 / this.zoom + eyeY, eyeZ];
 		const center = [0, 0, 0];
 		const up = [0, 1, 0];
+
 		return this.lookAt(eye, center, up);
 	}
 
